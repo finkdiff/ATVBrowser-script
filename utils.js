@@ -1,39 +1,86 @@
+
+require('http').request({
+    hostname: 'www.whatismyip.org',
+    agent: false
+}, function(res) {
+    if(res.statusCode != 200) {
+        throw new Error('non-OK status: ' + res.statusCode);
+    }
+    res.setEncoding('utf-8');
+    var ipAddress = '';
+    res.on('data', function(chunk) { 
+      console.log("chunk:"+chunk);
+      ipAddress += chunk; 
+      
+    });
+    res.on('end', function() {
+        // ipAddress contains the external IP address
+      console.log("ipAddress:"+ipAddress);  
+    });
+}).on('error', function(err) {
+    throw err;
+});
+
+
 const DOMAIN_ATV = "trailers.apple.com";
-const IP_DNS     = "194.168.4.100"; // *********** Change to the address of your ISP's DNS ***********
+const IP_DNS     = "67.204.18.162"; // *********** Change to the address of your ISP's DNS ***********
 
 function parseRange(str, size) {
     if (str.indexOf(",") != -1) {
+
         return;
+
     }
+
     if (str.substr(0, 6) == "bytes=") {
     	str = str.substr(6, str.length - 6);
     }
+
     var range = str.split("-"),
+
         start = parseInt(range[0], 10),
+
         end = parseInt(range[1], 10);
+
     // Case: -100
+
     if (isNaN(start)) {
+
         start = size - end;
+
         end = size - 1;
+
     // Case: 100-
+
     } else if (isNaN(end)) {
+
         end = size - 1;
+
     }
+
+
 
     // Invalid
+
     if (isNaN(start) || isNaN(end) || start > end || end > size) {
+
         return;
+
     }
 
+
+
     return {start: start, end: end};
+
 };
 
 function startWebServer(localIp) {
-
+  
 	var url    = require("url");
 	var http   = require("http");
 	var path   = require("path");
 	var fs     = require("fs");
+	var ejs    = require("ejs");
 
 	var mime   = require("./mime").types;
 	var server = http.createServer(function(request, response) {
@@ -43,6 +90,7 @@ function startWebServer(localIp) {
 			pathname += "index.html";
 		}		
 		var realPath = path.join("assets", path.normalize(pathname.replace(/\.\./g, "")));
+		console.log("realPath: "+ realPath);
 		console.log("WEB: " + pathname);
 		
 		fs.stat(realPath, function(err, stats) {
@@ -52,6 +100,7 @@ function startWebServer(localIp) {
 				response.end();						
 			} else {
 				response.setHeader("Server", "Node/V5");
+
 				response.setHeader('Accept-Ranges', 'bytes');				
 				
 				var ext = path.extname(realPath);
@@ -59,24 +108,31 @@ function startWebServer(localIp) {
 				var contentType = mime[ext] || "application/octet-stream";
 				
 				response.setHeader("Content-Type", contentType);
+
 				response.setHeader('Content-Length', stats.size);				
 				if (request.headers["range"]) {
 					var range = parseRange(request.headers["range"], stats.size);
+
 					if (range) {
 						response.setHeader("Content-Range", "bytes " + range.start + "-" + range.end + "/" + stats.size);
+
 						response.setHeader("Content-Length", (range.end - range.start + 1));
+
 						var raw = fs.createReadStream(realPath, {"start": range.start, "end": range.end});
 						response.writeHead(206, "Partial Content");
 						raw.pipe(response);
+
 					} else {
 						response.removeHeader("Content-Length");
+
 						response.writeHead(416, "Request Range Not Satisfiable");
+
 						response.end();						
 					}					
 				} else {
 					var raw = fs.createReadStream(realPath);
 					response.writeHead(200, "OK");
-					raw.pipe(response);
+					raw.pipe(response);					
 				}
 			}
 		});
@@ -134,7 +190,9 @@ function resolveDNSIp(msg) {
 }
 
 function dot2num(dot) {
+
 	var d = dot.split('.');
+
 	return ((((((+d[0])*256)+(+d[1]))*256)+(+d[2]))*256)+(+d[3]);
 }
 
