@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?><atv>
+
+<head>
+		<script src="http://trailers.apple.com/media.js"/>
+	</head>
+
+	  
+<body>	
+
+
+<viewWithNavigationBar id="navigation" onNavigate="loadItem(event)">
+
+			<navigation>
+				<navigationItem id="Movies">
+					<title>Movies</title>
+					<url>http://trailers.apple.com/Movies.xml</url>
+				</navigationItem>
+				<navigationItem id="TV Shows">
+					<title>TV Shows</title>
+					<url>http://trailers.apple.com/TVShows.xml</url>
+				</navigationItem>
+			</navigation>
+		</viewWithNavigationBar>
+  </body>	</atv>
