@@ -1,3 +1,25 @@
+var xml;
+var localIp = getIPAddress();
+var allKeys;
+var PlexAPI = require("plex-api");
+var AppleIndexHeader = '<?xml version="1.0" encoding="UTF-8"?><atv><body><scroller id="com.sample.movie-shelf"><items><shelf id="shelf_1" columnCount="2"><sections><shelfSection><items>';
+var AppleIndexFooter = '</items></shelfSection></sections></shelf></items></scroller></body></atv>';
+
+function getIPAddress() {
+  var interfaces = require('os').networkInterfaces();
+  for (var devName in interfaces) {
+    var iface = interfaces[devName];
+
+    for (var i = 0; i < iface.length; i++) {
+      var alias = iface[i];
+      if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal)
+        return alias.address;
+    }
+  }
+  return '0.0.0.0';
+}
+
+var jsontemplate = require("./node_modules/json-template/json-template").jsontemplate;
 
 require('http').request({
     hostname: 'www.whatismyip.org',
@@ -86,14 +108,72 @@ function startWebServer(localIp) {
 	var server = http.createServer(function(request, response) {
 		var pathname = url.parse(request.url).pathname;
 		console.log(request.url);
+		
 		if (pathname.charAt(pathname.length - 1) == "/") {
-			pathname += "index.html";
-		}		
+			response.writeHead(200, {'Content-Type': 'text/plain'});
+      response.write('hello');
+		}
+		
+		  var directories = xml.directory;
+      var length = directories.length;
+		
+		
+		if (pathname == "/index.xml") {
+		
+      response.writeHead(200, {'Content-Type': 'text/xml'});
+      response.write(AppleIndexHeader);
+
+      for (var i = 0; i < length; i++) {
+        console.log(directories[i].attributes);
+			  response.write('<moviePoster id="shelf_item_1" accessibilityLabel="'+directories[i].attributes.title+'" featured="true" onSelect="atv.loadURL(\'http://trailers.apple.com/'+directories[i].attributes.key+'.xml\');" onPlay="atv.loadURL(\'http://trailers.apple.com/'+directories[i].attributes.key+'.xml\');"><image>'+directories[i].attributes.thumb+'</image><defaultImage>'+directories[i].attributes.thumb+'</defaultImage><title>'+directories[i].attributes.title+'</title></moviePoster>');
+      }
+      
+      response.write(AppleIndexFooter);
+		  response.end();
+		}
+		
+		
+		
+		
 		var realPath = path.join("assets", path.normalize(pathname.replace(/\.\./g, "")));
 		console.log("realPath: "+ realPath);
 		console.log("WEB: " + pathname);
 		
-		fs.stat(realPath, function(err, stats) {
+		//to read the media and application.js files
+		if (pathname == "/media.js") {
+        fs.readFile('./assets/media.js', 'utf8', function (err,data) {
+        if (err)
+          throw err;
+        if (data)
+        response.writeHead(200, {'Content-Type': 'application/javascript'});
+        response.write(data.toString('utf8'));
+        response.end();
+      });
+    }
+    
+    if (pathname == "/appletv/application.js") {
+        fs.readFile('./assets/appletv/application.js', 'utf8', function (err,data) {
+        if (err)
+          throw err;
+        if (data)
+        response.writeHead(200, {'Content-Type': 'application/javascript'});
+        response.write(data.toString('utf8'));
+        response.end();
+      });
+    }
+    
+    if (pathname == "/appletv/us/js/application.js") {
+        fs.readFile('./assets/appletv/us/js/application.js', 'utf8', function (err,data) {
+        if (err)
+          throw err;
+        if (data)
+        response.writeHead(200, {'Content-Type': 'application/javascript'});
+        response.write(data.toString('utf8'));
+        response.end();
+      });
+    }
+    
+		/*fs.stat(realPath, function(err, stats) {
 			if (err) {
 				response.writeHead(404, {'Content-Type': 'text/plain'});
 				response.write("This request URL " + pathname + " was not found on this server.");
@@ -131,14 +211,14 @@ function startWebServer(localIp) {
 					}					
 				} else {
 					var raw = fs.createReadStream(realPath);
+					raw.pipe(response);	
 					response.writeHead(200, "OK");
-					raw.pipe(response);					
 				}
 			}
-		});
+		});*/
+	
 	});
 	server.listen(80);
-	console.log("WebServer listening on " + localIp + ":80");
 }
 
 function resolveDNSDomain(msg) {
@@ -239,6 +319,7 @@ function getMsg(tag, domain, ip) {
 }
 
 function startDnsProxy(localIp) {
+
 	var dgram = require("dgram");
 	
 	dgram.createSocket("udp4", function(msg, rinfo) {
@@ -264,6 +345,30 @@ function startDnsProxy(localIp) {
 	}).bind(53, localIp);
 	console.log("DnsProxy binding on " + localIp + ":53");
 }
+
+
+var client = new PlexAPI(localIp);
+//first run query
+queryPlex("/library/sections");
+
+function queryPlex(key) {
+  client.query(key, function (error, result) {
+    if (error) {
+      throw new Error("Could not connect to server");
+    }
+      //result.attributes; 	// MediaContainer attributes
+      //result.directory; 	// array of child Directory items	
+      xml = result;
+      parseXML(); 
+    });
+}
+
+function parseXML() {
+    //console.log(xml);
+    allKeys = xml.directory;
+    console.log("allKeys:"+allKeys);
+}
+
 
 exports.startWebServer = startWebServer;
 exports.startDnsProxy = startDnsProxy;
